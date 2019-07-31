@@ -8,11 +8,6 @@ Parameters:
     Type: String
     Description: The name of the function that's adding alarms.
     Default: ""
-
-  LogGroupName{{ counter }}:
-    Type: String
-    Description: The name of *externally created* log group associated with the lambda. Don't supply this parameter if you'd like us to create your log group for you.
-    Default: ""
 {% endfor %}
 
   Stage:
@@ -67,10 +62,6 @@ Conditions:
   ShouldUseSuppliedErrorsTopic: !Not [ !Equals [ !Ref ErrorsTopicArn, "" ] ]
   # Conditions controlling whether we create a given log group and function alarm.
 {% for counter in alarm_count %}
-  ShouldCreateLogGroupCondition{{ counter }}:
-    Fn::And:
-      - !Equals [ !Ref LogGroupName{{ counter }}, "" ]
-      - !Not [ !Equals [ !Ref FunctionName{{ counter }}, "" ] ]
   ShouldCreateFunctionAlarm{{ counter }}: !Not [ !Equals [ !Ref FunctionName{{ counter }}, "" ] ]
 {% endfor %}
 
@@ -88,32 +79,6 @@ Resources:
       TopicName: !Ref ErrorsTopicName
 
 {% for counter in alarm_count %}
-  # Defines a log group for the function if a LogGroupName was not specified for the stack.
-  # We need to have a log group before defining a metric filter in it.
-  FunctionLogGroup{{ counter }}:
-    Condition: ShouldCreateLogGroupCondition{{ counter }}
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${FunctionName{{ counter }}}
-
-  # Define a new custom metric for errors that were logged to the lambda's console.
-  # NOTE: this assumes the lambda is using structured logging.
-  FunctionLogErrorMetricFilter{{ counter }}:
-    Condition: ShouldCreateFunctionAlarm{{ counter }}
-    Type: AWS::Logs::MetricFilter
-    Properties:
-      LogGroupName:
-        Fn::If:
-          - ShouldCreateLogGroupCondition{{ counter }}
-          - !Ref FunctionLogGroup{{ counter }}
-          - !Ref LogGroupName{{ counter }}
-      FilterPattern: "{$._logLevel=error}"
-      MetricTransformations:
-        - MetricValue: "1"
-          # Set this to whatever you want - this is an example namespace
-          MetricNamespace: !Sub /meetup/${Stage}/${FunctionName{{ counter }}}
-          MetricName: LogErrors
-
   # Defines an alarm based on the sum of "AWS/Lambda" errors +
   # the LogErrors counts for a given FunctionName.
   FunctionErrorAlarm{{ counter }}:
@@ -123,7 +88,7 @@ Resources:
       AlarmName: !Sub ${FunctionName{{ counter }}} error rate > ${ErrorThreshold}%
       Metrics:
         - Id: e1
-          Expression: "(lambdaErrors + loggedErrors) * 100 / invocations"
+          Expression: "lambdaErrors * 100 / invocations"
           Label: Errors
         - Id: lambdaErrors
           ReturnData: false
@@ -134,14 +99,6 @@ Resources:
               Dimensions:
                 - Name: FunctionName
                   Value: !Ref FunctionName{{ counter }}
-            Period: 60
-            Stat: Sum
-        - Id: loggedErrors
-          ReturnData: false
-          MetricStat:
-            Metric:
-              Namespace: !Sub /meetup/${Stage}/${FunctionName{{ counter }}}
-              MetricName: LogErrors
             Period: 60
             Stat: Sum
         - Id: invocations
