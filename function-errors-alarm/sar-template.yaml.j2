@@ -10,11 +10,6 @@ Parameters:
     Default: ""
 {% endfor %}
 
-  Stage:
-    Type: String
-    Description: The stage associated with the parent stack. This is useful if you deploy more than one stage of your stack. If a stage is not defined, we'll default to Prod for metric purposes.
-    Default: Prod
-
   ErrorsTopicArn:
     Type: String
     Description: An ARN of an existing SNS topic suitable for receiving error and ok actions.
