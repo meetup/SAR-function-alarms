@@ -1,0 +1,5 @@
+packaged-*.yaml
+sar-template.yaml
+.envrc
+.venv
+out.json
