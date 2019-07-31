@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Creates alarms that monitor lambda error rates.
+
+Parameters:
+{% for counter in alarm_count %}
+  FunctionName{{ counter }}:
+    Type: String
+    Description: The name of the function that's adding alarms.
+    Default: ""
+
+  LogGroupName{{ counter }}:
+    Type: String
+    Description: The name of *externally created* log group associated with the lambda. Don't supply this parameter if you'd like us to create your log group for you.
+    Default: ""
+{% endfor %}
+
+  Stage:
+    Type: String
+    Description: The stage associated with the parent stack. This is useful if you deploy more than one stage of your stack. If a stage is not defined, we'll default to Prod for metric purposes.
+    Default: Prod
+
+  ErrorsTopicArn:
+    Type: String
+    Description: An ARN of an existing SNS topic suitable for receiving error and ok actions.
+    Default: ""
+
+  ErrorsTopicName:
+    Type: String
+    Description: A name we will use to create an SNS topic to which error and ok actions are published. The topic should be unique for your account.
+    Default: ""
+
+  ErrorThreshold:
+    Type: Number
+    Description: "The percentage of errors per EvaluationPeriod minutes before the alarm is triggered (default: 3)"
+    Default: 3
+
+  TreatMissingData:
+    Type: String
+    AllowedValues: [breaching, notBreaching, ignore, missing]
+    Default: notBreaching
+
+  EvaluationPeriods:
+    Type: Number
+    Description: The number of minutes over which data is compared to the specified threshold.
+    Default: 1
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: lambda-alarms
+    Description: Adds alarms that monitor lambda error rates
+    Author: cloud-architecture
+    HomePageUrl: https://github.com/meetup/cloud-arch-components
+    SourceCodeUrl: https://github.com/meetup/cloud-arch-components
+
+Conditions:
+  # We only want to execute AlarmActions and OkActions if our user has supplied an existing
+  # topic or asked us to create a new topic.
+  UseAlarmActionsCondition:
+    Fn::Or:
+      - !Not [ !Equals [ !Ref ErrorsTopicName, "" ] ]
+      - !Not [ !Equals [ !Ref ErrorsTopicArn, "" ] ]
+  ShouldCreateErrorsTopicCondition:
+    Fn::And:
+      - !Equals [ !Ref ErrorsTopicArn, "" ]
+      - !Not [ !Equals [ !Ref ErrorsTopicName, "" ] ]
+  ShouldUseSuppliedErrorsTopic: !Not [ !Equals [ !Ref ErrorsTopicArn, "" ] ]
+  # Conditions controlling whether we create a given log group and function alarm.
+{% for counter in alarm_count %}
+  ShouldCreateLogGroupCondition{{ counter }}:
+    Fn::And:
+      - !Equals [ !Ref LogGroupName{{ counter }}, "" ]
+      - !Not [ !Equals [ !Ref FunctionName{{ counter }}, "" ] ]
+  ShouldCreateFunctionAlarm{{ counter }}: !Not [ !Equals [ !Ref FunctionName{{ counter }}, "" ] ]
+{% endfor %}
+
+Outputs:
+  ErrorsTopicArn:
+    Condition: ShouldCreateErrorsTopicCondition
+    Description: ARN of the created errors topic, useful for adding subscriptions
+    Value: !Ref ErrorsTopic
+
+Resources:
+  ErrorsTopic:
+    Condition: ShouldCreateErrorsTopicCondition
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref ErrorsTopicName
+
+{% for counter in alarm_count %}
+  # Defines a log group for the function if a LogGroupName was not specified for the stack.
+  # We need to have a log group before defining a metric filter in it.
+  FunctionLogGroup{{ counter }}:
+    Condition: ShouldCreateLogGroupCondition{{ counter }}
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${FunctionName{{ counter }}}
+
+  # Define a new custom metric for errors that were logged to the lambda's console.
+  # NOTE: this assumes the lambda is using structured logging.
+  FunctionLogErrorMetricFilter{{ counter }}:
+    Condition: ShouldCreateFunctionAlarm{{ counter }}
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName:
+        Fn::If:
+          - ShouldCreateLogGroupCondition{{ counter }}
+          - !Ref FunctionLogGroup{{ counter }}
+          - !Ref LogGroupName{{ counter }}
+      FilterPattern: "{$._logLevel=error}"
+      MetricTransformations:
+        - MetricValue: "1"
+          # Set this to whatever you want - this is an example namespace
+          MetricNamespace: !Sub /meetup/${Stage}/${FunctionName{{ counter }}}
+          MetricName: LogErrors
+
+  # Defines an alarm based on the sum of "AWS/Lambda" errors +
+  # the LogErrors counts for a given FunctionName.
+  FunctionErrorAlarm{{ counter }}:
+    Condition: ShouldCreateFunctionAlarm{{ counter }}
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${FunctionName{{ counter }}} error rate > ${ErrorThreshold}%
+      Metrics:
+        - Id: e1
+          Expression: "(lambdaErrors + loggedErrors) * 100 / invocations"
+          Label: Errors
+        - Id: lambdaErrors
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: "AWS/Lambda"
+              MetricName: Errors
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Ref FunctionName{{ counter }}
+            Period: 60
+            Stat: Sum
+        - Id: loggedErrors
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: !Sub /meetup/${Stage}/${FunctionName{{ counter }}}
+              MetricName: LogErrors
+            Period: 60
+            Stat: Sum
+        - Id: invocations
+          ReturnData: false
+          MetricStat:
+            Metric:
+              Namespace: "AWS/Lambda"
+              MetricName: Invocations
+              Dimensions:
+                - Name: FunctionName
+                  Value: !Ref FunctionName{{ counter }}
+            Period: 60
+            Stat: Sum
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: !Ref ErrorThreshold
+      EvaluationPeriods: !Ref EvaluationPeriods
+      TreatMissingData: !Ref TreatMissingData
+      # For this example we send notifications to SNS. SNS can be used as a bridge to Slack, Email, etc.
+      ActionsEnabled: !If
+        - UseAlarmActionsCondition
+        - true
+        - false
+      AlarmActions:
+        Fn::If:
+          - UseAlarmActionsCondition
+          - Fn::If:
+            - ShouldUseSuppliedErrorsTopic
+            - [ Ref: ErrorsTopicArn ]
+            - [ Ref: ErrorsTopic ]
+          - []
+      OKActions:
+        Fn::If:
+          - UseAlarmActionsCondition
+          - Fn::If:
+            - ShouldUseSuppliedErrorsTopic
+            - [ Ref: ErrorsTopicArn ]
+            - [ Ref: ErrorsTopic ]
+          - []
+{% endfor %}

@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: A multi-lambda example showing usage of the lambda-alarms application.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+
+Resources:
+  # We could define a shared errors topic here, or export the topic from one app and
+  # use it another using !GetAtt AppResource1.Outputs.ErrorsTopicArn
+  # ErrorsTopic:
+  #   Type: AWS::SNS::Topic
+  #   Properties:
+  #     TopicName: !Sub "${AWS::StackName}-alerts-alarm"
+
+  TestHelloLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      FunctionName: TestHelloLambda
+      Runtime: nodejs8.10
+      CodeUri: ./
+      Handler: index.handler
+      Policies:
+        - AWSLambdaExecute # Managed Policy
+
+  TestByeLambda:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      FunctionName: TestByeLambda
+      Runtime: nodejs8.10
+      CodeUri: ./
+      Handler: index.byeHandler
+      Policies:
+        - AWSLambdaExecute # Managed Policy
+
+  TestAlarms:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:501935917622:applications/lambda-alarms
+        SemanticVersion: 1.0.0
+      Parameters:
+        FunctionName0: !Ref TestHelloLambda
+        FunctionName1: !Ref TestByeLambda
+        Stage: !Ref Stage
+        ErrorsTopicName: !Sub "${AWS::StackName}-alerts-alarm"
