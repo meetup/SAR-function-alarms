@@ -23,7 +23,7 @@ To install this application for your own lambdas, add the following to your SAM 
     Type: AWS::Serverless::Application
     Properties:
       Location:
-        ApplicationId: arn:aws:serverlessrepo:us-east-1:022247682424:applications/function-errors-alarm
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:623245082754:applications/function-errors-alarm
         SemanticVersion: 1.0.0
       Parameters:
         FunctionName0: !Ref MyFirstLambda
@@ -49,7 +49,7 @@ The function-errors-alarm application has some flexibility built-in:
     Type: AWS::Serverless::Application
     Properties:
       Location:
-        ApplicationId: arn:aws:serverlessrepo:us-east-1:022247682424:applications/function-errors-alarm
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:623245082754:applications/function-errors-alarm
         SemanticVersion: 1.0.0
       Parameters:
         FunctionName0: !Ref MyFirstLambda
