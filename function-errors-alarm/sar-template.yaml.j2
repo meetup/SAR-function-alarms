@@ -38,10 +38,12 @@ Parameters:
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: function-errors-alarm
+    Labels: ['lambda', 'alarms', 'cloudwatch']
     Description: Adds alarms that monitor lambda error rates
     Author: Meetup
     HomePageUrl: https://github.com/meetup/SAR-function-alarms/function-errors-alarm
     SourceCodeUrl: https://github.com/meetup/SAR-function-alarms/function-errors-alarm
+    ReadmeUrl: README.md
 
 Conditions:
   # We only want to execute AlarmActions and OkActions if our user has supplied an existing
