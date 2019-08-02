@@ -1,25 +1,6 @@
-# lambda-alarms
+# function-errors-alarms ❌🚨
 
-This application adds succinctly defined CloudWatch alarms to your AWS lambda applications.
-
-Monitoring error rates of our lambdas (`# Errors / # Invocations`) is an effective way
-to determine if something is broken. Monitoring error rates works well for both lambdas
-that run frequently or infrequently. As long as our evaluation period is large or small
-enough, we can gain insight into when our lambdas are failing more than they should be.
-
-A first pass at monitoring error rates might involve creating an alarm that calculates
-`AWS/Lambda::Errors` / `AWS/Lambda::Invocations`. Though this can work, this calculation
-only captures errors that directly failed the lambda. If an error were instead logged via
-structured logging by mistake, we wouldn't know it was happening by default.
-
-A better approach then is to _also_ included the number of logged errors in our error rate:
-```
-(AWS/Lambda::Errors + LoggedErrors) / AWS/Lambda::Invocations
-```
-
-Defining an alarm in CloudFormation that monitors error rates this way is quite verbose (over 70 lines)
-and quite repetitive. This application aims make error rate alarm creation succinct
-and flexible. The Quick Start below provides a simple example.
+A serverless application that adds alarms based on lambda error rates to your SAM applications.
 
 ## Quick Start
 
@@ -38,12 +19,12 @@ To install this application for your own lambdas, add the following to your SAM 
       FunctionName: MySecondLambda
     # ...
 
-  AlarmsApp:
+  FunctionErrorAlarms:
     Type: AWS::Serverless::Application
     Properties:
       Location:
-        ApplicationId: arn:aws:serverlessrepo:us-east-1:501935917622:applications/lambda-alarms
-        SemanticVersion: 1.0.25
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:022247682424:applications/function-errors-alarm
+        SemanticVersion: 1.0.0
       Parameters:
         FunctionName0: !Ref MyFirstLambda
         FunctionName1: !Ref MySecondLambda
@@ -59,27 +40,28 @@ will trigger.
 
 ## Larger Example
 
-The alarms app can create an SNS topic for errors for you. You can then reference
-the created topic's ARN in your template, for instance if you want to add a
-subscription to that topic. In the example below, we post the alarm status to
-a pager duty endpoint for our service.
+The function-errors-alarm application has some flexibility built-in.
+- It can use an existing SNS topic for your alarms or create one for you.
+- You can control elements about the generated alarms such as threshold and evaluation periods.
 
-```
-  AlarmsApp:
+
+```yaml
+  FunctionErrorAlarms:
     Type: AWS::Serverless::Application
     Properties:
       Location:
-        ApplicationId: arn:aws:serverlessrepo:us-east-1:501935917622:applications/lambda-alarms
-        SemanticVersion: 1.0.25
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:022247682424:applications/function-errors-alarm
+        SemanticVersion: 1.0.0
       Parameters:
         FunctionName0: !Ref MyFirstLambda
         FunctionName1: !Ref MySecondLambda
-        # Creates a unique topic for errors. AlarmsApp will have ErrorsTopicArn in its outputs.
+        # Creates a unique topic for errors. FunctionErrorAlarms will have ErrorsTopicArn in its outputs.
         ErrorTopicName: !Sub ${AWS::StackName}-errors
 
-  # We can create an optional subscriptions to the SNS topic created by AlarmsApp
+  # We can create an optional subscriptions to the SNS topic created by FunctionErrorAlarms
   PagerDutySubscription:
     Type: AWS::SNS::Subscription
+    DependsOn: FunctionErrorAlarms
     Properties:
       Protocol: https
       Endpoint: https://events.pagerduty.com/integration/${pagerDutyIntegrationKey}/enqueue
@@ -96,8 +78,6 @@ template parameters.
 | Parameter | Required? | Description |
 | --------- | --------- | ----------- |
 | FunctionName<N> | Yes | The name of the lambda that will have alarms attached. You'll usually want `!Ref <YourLambda>` |
-| LogGroupName<N> | No | Specify a log group name for the `Nth` lambda, if that lambda has an  **externally created** log group. If your application is new, there's not need to define this property. |
-| Stage | No | The stage associated with the parent stack. This is useful if you deploy more than one stage of your stack. (default: Prod) |
 | ErrorsTopicArn | No | An ARN of an existing SNS topic suitable for receiving error and ok actions. |
 | ErrorsTopicName | No | A name we will use to create an SNS topic to which error and ok actions are published. The topic should be unique for your account. |
 | ErrorThreshold | No | The percentage of errors per EvaluationPeriod minutes before the alarm is triggered (default: 3) |
