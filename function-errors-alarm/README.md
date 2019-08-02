@@ -40,10 +40,9 @@ will trigger.
 
 ## Larger Example
 
-The function-errors-alarm application has some flexibility built-in.
+The function-errors-alarm application has some flexibility built-in:
 - It can use an existing SNS topic for your alarms or create one for you.
 - You can control elements about the generated alarms such as threshold and evaluation periods.
-
 
 ```yaml
   FunctionErrorAlarms:
@@ -72,7 +71,7 @@ The function-errors-alarm application has some flexibility built-in.
 
 We support adding alarms for up to five lambdas via the `FunctionName0`, `FunctionName1`, ..., `FunctionName4` parameters.
 
-NOTE: We can't support any more than 5 at this time, due to a limitation in the number of CloudFormation
+NOTE: We can't support any more than 8 at this time, due to a limitation in the number of CloudFormation
 template parameters.
 
 | Parameter | Required? | Description |
