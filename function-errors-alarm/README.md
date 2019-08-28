@@ -55,7 +55,7 @@ The function-errors-alarm application has some flexibility built-in:
         FunctionName0: !Ref MyFirstLambda
         FunctionName1: !Ref MySecondLambda
         # Creates a unique topic for errors. FunctionErrorAlarms will have ErrorsTopicArn in its outputs.
-        ErrorTopicName: !Sub ${AWS::StackName}-errors
+        ErrorsTopicName: !Sub ${AWS::StackName}-errors
 
   # We can create an optional subscriptions to the SNS topic created by FunctionErrorAlarms
   PagerDutySubscription:
