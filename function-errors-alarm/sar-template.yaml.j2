@@ -59,7 +59,7 @@ Conditions:
       - !Equals [ !Ref ErrorsTopicArn, "" ]
       - !Not [ !Equals [ !Ref ErrorsTopicName, "" ] ]
   ShouldUseSuppliedErrorsTopic: !Not [ !Equals [ !Ref ErrorsTopicArn, "" ] ]
-  # Conditions controlling whether we create a given log group and function alarm.
+  # Conditions controlling whether we create a given function alarm.
 {% for counter in alarm_count %}
   ShouldCreateFunctionAlarm{{ counter }}: !Not [ !Equals [ !Ref FunctionName{{ counter }}, "" ] ]
 {% endfor %}
@@ -78,8 +78,8 @@ Resources:
       TopicName: !Ref ErrorsTopicName
 
 {% for counter in alarm_count %}
-  # Defines an alarm based on the sum of "AWS/Lambda" errors +
-  # the LogErrors counts for a given FunctionName.
+  # Defines an alarm based on the sum of "AWS/Lambda" errors per "AWS/Lambda" invocations
+  # for a given FunctionName.
   FunctionErrorAlarm{{ counter }}:
     Condition: ShouldCreateFunctionAlarm{{ counter }}
     Type: AWS::CloudWatch::Alarm
@@ -111,7 +111,7 @@ Resources:
                   Value: !Ref FunctionName{{ counter }}
             Period: 60
             Stat: Sum
-      ComparisonOperator: GreaterThanThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
       Threshold: !Ref ErrorThreshold
       EvaluationPeriods: !Ref EvaluationPeriods
       TreatMissingData: !Ref TreatMissingData
