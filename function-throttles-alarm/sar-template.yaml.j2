@@ -83,7 +83,7 @@ Resources:
     Condition: ShouldCreateFunctionAlarm{{ counter }}
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub ${FunctionName{{ counter }}} was throttled ${ErrorThreshold} time(s) in the last ${EvaluationPeriods} minute(s).
+      AlarmName: !Sub ${FunctionName{{ counter }}} was throttled >= ${ErrorThreshold} time(s) in the last ${EvaluationPeriods} minute(s).
       Namespace: "AWS/Lambda"
       MetricName: Throttles
       Statistic: Sum

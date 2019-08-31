@@ -69,7 +69,7 @@ The function-errors-alarm application has some flexibility built-in:
 
 ## Supported Parameters
 
-We support adding alarms for up to five lambdas via the `FunctionName0`, `FunctionName1`, ..., `FunctionName4` parameters.
+We support adding alarms for up to eight lambdas via the `FunctionName0`, `FunctionName1`, ..., `FunctionName4` parameters.
 
 NOTE: We can't support any more than 8 at this time, due to a limitation in the number of CloudFormation
 template parameters.
