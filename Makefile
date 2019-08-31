@@ -2,6 +2,16 @@
 REGION=us-east-1
 SAM_BUCKET=sam-artifacts-$(shell aws sts get-caller-identity --query 'Account' --output text)-$(REGION)
 
+# Determine the semantic version number. Currently, all changed applications will get bumped
+# to the new semantic version.
+# TODO: implement a nicer way to bump the version using `aws serverlessrepo ... --query 'Version.SemanticVersion'`
+SEM_VER_PREFIX=1.0.
+ifdef TRAVIS_BUILD_NUMBER
+	BUILD_NUMBER=$(SEM_VER_PREFIX)$(TRAVIS_BUILD_NUMBER)
+else
+	BUILD_NUMBER=$(SEM_VER_PREFIX)0-dev-0
+endif
+
 template_inputs = $(wildcard function-errors-alarm/*.yaml.j2) \
 	$(wildcard function-throttles-alarm/*.yaml.j2)
 templates = $(template_inputs:.yaml.j2=.yaml)
@@ -18,7 +28,8 @@ applications = $(templates:.yaml=.packaged.yaml)
 		--output-template-file $@
 	sam publish \
 		--template $@ \
-		--region $(REGION)
+		--region $(REGION) \
+		--semantic-version $(BUILD_NUMBER)
 
 deploy-applications: $(applications)
 	@echo "Finished deploying SAR applications."
