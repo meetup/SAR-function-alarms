@@ -7,7 +7,7 @@ Serverless Application Repository (SAR) applications that simplify common lambda
 | [function-errors](./function-errors-alarm/README.md) | Triggers when the error rate of a lambda is above a specified rate |
 | [function-throttles](./function-throttles-alarm/README.md) | Triggers when the number of throttles of a lambda is greater or equal to a certain amount. |
 
-## 👩👨 Development
+## 👩‍💻👨‍💻 Development
 
 These applications are built using AWS SAM. For more details on developing these applications, visit this [README](./DEVELOPING.md)
 
