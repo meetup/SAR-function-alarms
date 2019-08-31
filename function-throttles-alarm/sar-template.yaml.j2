@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Creates alarms that trigger when lambdas are throttled.
+
+Parameters:
+{% for counter in alarm_count %}
+  FunctionName{{ counter }}:
+    Type: String
+    Description: The name of the function that's adding alarms.
+    Default: ""
+{% endfor %}
+
+  ErrorsTopicArn:
+    Type: String
+    Description: An ARN of an existing SNS topic suitable for receiving error and ok actions.
+    Default: ""
+
+  ErrorsTopicName:
+    Type: String
+    Description: A name we will use to create an SNS topic to which error and ok actions are published. The topic should be unique for your account.
+    Default: ""
+
+  ErrorThreshold:
+    Type: Number
+    Description: "The number of function throttles in EvaluationPeriod minutes before the alarm is triggered (default: 1)"
+    Default: 1
+
+  TreatMissingData:
+    Type: String
+    AllowedValues: [breaching, notBreaching, ignore, missing]
+    Default: notBreaching
+
+  EvaluationPeriods:
+    Type: Number
+    Description: The number of minutes over which data is compared to the specified threshold.
+    Default: 1
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: function-throttles-alarm
+    Labels: ['lambda', 'alarms', 'cloudwatch']
+    Description: Adds alarms that monitor lambda throttles
+    Author: Meetup
+    SpdxLicenseId: MIT
+    LicenseUrl: LICENSE
+    HomePageUrl: https://github.com/meetup/SAR-function-alarms/function-throttles-alarm
+    SourceCodeUrl: https://github.com/meetup/SAR-function-alarms/function-throttles-alarm
+    ReadmeUrl: README.md
+
+Conditions:
+  # We only want to execute AlarmActions and OkActions if our user has supplied an existing
+  # topic or asked us to create a new topic.
+  UseAlarmActionsCondition:
+    Fn::Or:
+      - !Not [ !Equals [ !Ref ErrorsTopicName, "" ] ]
+      - !Not [ !Equals [ !Ref ErrorsTopicArn, "" ] ]
+  ShouldCreateErrorsTopicCondition:
+    Fn::And:
+      - !Equals [ !Ref ErrorsTopicArn, "" ]
+      - !Not [ !Equals [ !Ref ErrorsTopicName, "" ] ]
+  ShouldUseSuppliedErrorsTopic: !Not [ !Equals [ !Ref ErrorsTopicArn, "" ] ]
+  # Conditions controlling whether we create a given function alarm.
+{% for counter in alarm_count %}
+  ShouldCreateFunctionAlarm{{ counter }}: !Not [ !Equals [ !Ref FunctionName{{ counter }}, "" ] ]
+{% endfor %}
+
+Outputs:
+  ErrorsTopicArn:
+    Condition: ShouldCreateErrorsTopicCondition
+    Description: ARN of the created errors topic, useful for adding subscriptions
+    Value: !Ref ErrorsTopic
+
+Resources:
+  ErrorsTopic:
+    Condition: ShouldCreateErrorsTopicCondition
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref ErrorsTopicName
+
+{% for counter in alarm_count %}
+  # Defines an alarm based on the sum of "AWS/Lambda" throttles for a given FunctionName.
+  FunctionErrorAlarm{{ counter }}:
+    Condition: ShouldCreateFunctionAlarm{{ counter }}
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${FunctionName{{ counter }}} was throttled ${ErrorThreshold} time(s) in the last ${EvaluationPeriods} minute(s).
+      Namespace: "AWS/Lambda"
+      MetricName: Throttles
+      Statistic: Sum
+      Period: 60
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Threshold: !Ref ErrorThreshold
+      EvaluationPeriods: !Ref EvaluationPeriods
+      TreatMissingData: !Ref TreatMissingData
+      # For this example we send notifications to SNS. SNS can be used as a bridge to Slack, Email, etc.
+      ActionsEnabled: !If
+        - UseAlarmActionsCondition
+        - true
+        - false
+      AlarmActions:
+        Fn::If:
+          - UseAlarmActionsCondition
+          - Fn::If:
+            - ShouldUseSuppliedErrorsTopic
+            - [ Ref: ErrorsTopicArn ]
+            - [ Ref: ErrorsTopic ]
+          - []
+      OKActions:
+        Fn::If:
+          - UseAlarmActionsCondition
+          - Fn::If:
+            - ShouldUseSuppliedErrorsTopic
+            - [ Ref: ErrorsTopicArn ]
+            - [ Ref: ErrorsTopic ]
+          - []
+{% endfor %}

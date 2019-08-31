@@ -1,0 +1,14 @@
+{
+  "name": "example-alarm-app",
+  "version": "1.0.0",
+  "description": "An example app showing alarms",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "lambda-log": "^2.2.0"
+  }
+}
