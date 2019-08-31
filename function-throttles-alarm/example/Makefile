@@ -1,4 +1,6 @@
-SAM_BUCKET=sam-artifacts-$(shell aws sts get-caller-identity --query 'Account' --output text)-us-east-1
+# This assumes you've created an S3 bucket on your account in the format of `sam-artifacts-[accountId]-[region]
+REGION=us-east-1
+SAM_BUCKET=sam-artifacts-$(shell aws sts get-caller-identity --query 'Account' --output text)-$(REGION)
 
 clean:
 	rm -f packaged-sam-template.yaml
