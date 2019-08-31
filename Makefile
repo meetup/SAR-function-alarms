@@ -1,5 +1,6 @@
 # This assumes you've created an S3 bucket on your account in the format of `sam-artifacts-[accountId]-[region]
-SAM_BUCKET=sam-artifacts-$(shell aws sts get-caller-identity --query 'Account' --output text)-us-east-1
+REGION=us-east-1
+SAM_BUCKET=sam-artifacts-$(shell aws sts get-caller-identity --query 'Account' --output text)-$(REGION)
 
 template_inputs = $(wildcard function-errors-alarm/*.yaml.j2) \
 	$(wildcard function-throttles-alarm/*.yaml.j2)
@@ -17,8 +18,7 @@ applications = $(templates:.yaml=.packaged.yaml)
 		--output-template-file $@
 	sam publish \
 		--template $@ \
-		--region us-east-1 \
-		--semantic-version 1.0.0
+		--region $(REGION)
 
 deploy-applications: $(applications)
 	@echo "Finished deploying SAR applications."
