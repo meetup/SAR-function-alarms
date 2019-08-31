@@ -14,5 +14,5 @@ package-app:
 deploy-app: package-app
 	aws cloudformation deploy \
 		--template packaged-sam-template.yaml \
-		--stack-name sample-alarms-app-jim \
+		--stack-name sample-throttles-alarm-app \
 		--capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Creates alarms that monitor lambda error rates.
+Description: Creates alarms that trigger when lambdas are throttled.
 
 Parameters:
 {% for counter in alarm_count %}
@@ -22,8 +22,8 @@ Parameters:
 
   ErrorThreshold:
     Type: Number
-    Description: "The percentage of errors per EvaluationPeriod minutes before the alarm is triggered (default: 3)"
-    Default: 3
+    Description: "The number of function throttles in EvaluationPeriod minutes before the alarm is triggered (default: 1)"
+    Default: 1
 
   TreatMissingData:
     Type: String
@@ -37,14 +37,14 @@ Parameters:
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: function-errors-alarm
+    Name: function-throttles-alarm
     Labels: ['lambda', 'alarms', 'cloudwatch']
-    Description: Adds alarms that monitor lambda error rates
+    Description: Adds alarms that monitor lambda throttles
     Author: Meetup
     SpdxLicenseId: MIT
     LicenseUrl: ../LICENSE
-    HomePageUrl: https://github.com/meetup/SAR-function-alarms/function-errors-alarm
-    SourceCodeUrl: https://github.com/meetup/SAR-function-alarms/function-errors-alarm
+    HomePageUrl: https://github.com/meetup/SAR-function-alarms/function-throttles-alarm
+    SourceCodeUrl: https://github.com/meetup/SAR-function-alarms/function-throttles-alarm
     ReadmeUrl: README.md
 
 Conditions:
@@ -78,39 +78,16 @@ Resources:
       TopicName: !Ref ErrorsTopicName
 
 {% for counter in alarm_count %}
-  # Defines an alarm based on the sum of "AWS/Lambda" errors per "AWS/Lambda" invocations
-  # for a given FunctionName.
+  # Defines an alarm based on the sum of "AWS/Lambda" throttles for a given FunctionName.
   FunctionErrorAlarm{{ counter }}:
     Condition: ShouldCreateFunctionAlarm{{ counter }}
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub ${FunctionName{{ counter }}} error rate > ${ErrorThreshold}%
-      Metrics:
-        - Id: e1
-          Expression: "lambdaErrors * 100 / invocations"
-          Label: Errors
-        - Id: lambdaErrors
-          ReturnData: false
-          MetricStat:
-            Metric:
-              Namespace: "AWS/Lambda"
-              MetricName: Errors
-              Dimensions:
-                - Name: FunctionName
-                  Value: !Ref FunctionName{{ counter }}
-            Period: 60
-            Stat: Sum
-        - Id: invocations
-          ReturnData: false
-          MetricStat:
-            Metric:
-              Namespace: "AWS/Lambda"
-              MetricName: Invocations
-              Dimensions:
-                - Name: FunctionName
-                  Value: !Ref FunctionName{{ counter }}
-            Period: 60
-            Stat: Sum
+      AlarmName: !Sub ${FunctionName{{ counter }}} was throttled >= ${ErrorThreshold} time(s) in the last ${EvaluationPeriods} minute(s).
+      Namespace: "AWS/Lambda"
+      MetricName: Throttles
+      Statistic: Sum
+      Period: 60
       ComparisonOperator: GreaterThanOrEqualToThreshold
       Threshold: !Ref ErrorThreshold
       EvaluationPeriods: !Ref EvaluationPeriods
