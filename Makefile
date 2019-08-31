@@ -43,6 +43,3 @@ install-deps:
 clean:
 	rm -f $(templates)
 	rm -f $(applications)
-
-
-
