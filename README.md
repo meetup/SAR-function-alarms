@@ -7,6 +7,15 @@ Serverless Application Repository (SAR) applications that simplify common lambda
 | [function-errors](./function-errors-alarm/README.md) | Triggers when the error rate of a lambda is above a specified rate |
 | [function-throttles](./function-throttles-alarm/README.md) | Triggers when the number of throttles of a lambda is greater or equal to a certain amount. |
 
+## Examples
+
+The [examples](./examples) directory contains working example applications that use the alarm SAR applications. To deploy these samples, do the following:
+
+```bash
+shell$ cd examples/<example>
+shell$ make deploy-app
+```
+
 ## 👩‍💻👨‍💻 Development
 
 These applications are built using AWS SAM. For more details on developing these applications, visit this [README](./DEVELOPING.md)
