@@ -42,6 +42,7 @@ install-deps:
 .PHONY: clean
 clean:
 	rm -f $(templates)
+	rm -f $(applications)
 
 
 
